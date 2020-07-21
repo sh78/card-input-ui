@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { makeStyles } from "@material-ui/core/styles";
 import Button from "@material-ui/core/Button";
 import TextField from "@material-ui/core/TextField";
@@ -16,41 +16,151 @@ const useStyles = makeStyles((theme) => ({
   },
 }));
 
-// This is rather lenient; unsure of how important the name field is for the
-// merchant processor. For now we'll say one or more or any alpha, comma,
-// period, or hyphen.
-// FIXME: support people who have other characters in their name, like André
-// Also - are one word names valid in credit card land? Cher? Bono?
-const validNameRE = /^[a-z ,.'-]+$/i;
-
-const validateInput = (name: string, value: string) => {
-  let isValid = false;
-  if (validNameRE.test(value)) {
-    isValid = true;
-  }
-
-  return isValid;
-};
-
 function PaymentForm() {
   const classes = useStyles();
 
+  // State: current value of fields
+  const starterFields: { [key: string]: string } = {
+    cardName: "",
+    cardNumber: "",
+    cardExpiration: "",
+    cardCVV: "",
+  };
+  const [fields, setFields] = useState(starterFields);
+
   // State: map of which field names have an error
-  const [ errorObj, setErrorObj ] = useState({
-    'cardName': false
-  });
+  const starterErrors: { [key: string]: Boolean } = {
+    cardName: false,
+    cardNumber: false,
+    cardExpiration: false,
+    cardCVV: false,
+  };
+  const [errorObj, setErrorObj] = useState(starterErrors);
+
+  // Each property is a function that looks at the current field State and
+  // decides if its own field is valid. This is to handle validation
+  // dependencies; namely, the CVV variation between Amex and Visa.
+  const validators: { [key: string]: Function } = {
+    cardName: (val: string) => {
+      // "One alpha character followed by one or more alpha, comma, period,
+      // single quote, hypen."
+      // This is lenient; not sure how important the name is for a merchant
+      // processor. privacy.com, for example, allows "any" name.
+      // FIXME: support people who have other characters in their name, like
+      // André.
+      const pattern = /^[a-z][a-z ,.'-]+$/i;
+      return pattern.test(val);
+    },
+    isVisa: (val: string) => {
+      // Any 16 digits starting with 4
+      const visaPattern = /^4\d{15}$/;
+      return visaPattern.test(val);
+    },
+    isAmex: (val: string) => {
+      // Any 16 digits starting with 4
+      const amexPattern = /^(34|37)\d{13}$/;
+      return amexPattern.test(val);
+    },
+    cardNumber: (val: string) => {
+      const self = validators;
+      const amex = self.isAmex(val);
+      const visa = self.isVisa(val);
+      return visa || amex;
+    },
+    cardExpiration: (val: string) => {
+      // FIXME: better to do this with a normalization library like Moment.js
+      const isFourDigits = !!val.match(/^\d{4}$/);
+      if (isFourDigits) {
+        // Year of expiry, assume it's ok to prefix the current century
+        const ExpYear = parseInt(`20${val.slice(2, 4)}`);
+        // Two digits representing month
+        const ExpMonth = parseInt(val.slice(0, 2), 10);
+        // Make a Date, the first day of the expiry month
+        const ExpDate = new Date(ExpYear, ExpMonth - 1);
+        // Current date
+        const nowDate = new Date();
+
+        // Compare
+        return ExpDate > nowDate;
+      }
+      return false;
+    },
+    cardCVV: (val: string) => {
+      const self = validators;
+
+      // This looks ok, 3 or 4 digits, let's think some more
+      const couldBe = !!val.match(/^\d{3,4}$/);
+      // Current card number value in State
+      const stateCardNumber = self.cardNumber(fields.cardNumber);
+
+      // If we have a 3 or 4 digit value, but no card number; don't yell at
+      // anyone just yet.
+      if (couldBe && stateCardNumber.length === 0) return true;
+
+      // If there is a value for the card number right now; does this CVV align
+      // with the inferred bank?
+      const visa = self.isVisa(fields.cardNumber);
+      if (visa && val.length === 3) return true;
+
+      const amex = self.isAmex(fields.cardNumber);
+      if (amex && val.length === 4) return true;
+
+      return false;
+    },
+  };
+
+  const validateAnInput = (name: string, value: string) => {
+    let isValid = false;
+    // Make sure this is a String, and not a string, so we can look up the
+    // index
+    const nameString = name.toString();
+    if (validators[nameString](value)) {
+      isValid = true;
+    }
+
+    return isValid;
+  };
+
   // TODO: State: is the form submit in progress right now?
   // const [ loading, setLoading ] = useState(false);
 
-  // Changes to individual inputs
+  // State: check if it's ok to submit the whole form
+  const [allowSubmit, setAllowSubmit] = useState(false);
+  useEffect(() => {
+    const allFieldsValid = () => {
+      // Loop through fields in state and check if they have been filled out and
+      // don't have errors
+      for (const prop in fields) {
+        const propString = prop.toString();
+        if (fields[propString].length === 0 || errorObj[propString] === true) {
+          return false;
+        }
+      }
+      return true;
+    };
+
+    setAllowSubmit(allFieldsValid);
+  }, [errorObj, fields]);
+
+  // Each change to a single field
   const handleChange = (event: React.ChangeEvent<HTMLInputElement>): void => {
     event.preventDefault();
     const { name, value } = event.target as HTMLInputElement;
 
+    // State: update the field value
+    setFields((prevState) => ({ ...prevState, [name]: value }));
+
     // Get result of validation (boolean)
-    const isInvalid = !validateInput(name, value.toString());
-    // Replace value of field name in error our state object with the result
-    setErrorObj(prevState => ({ ...prevState, [name]: isInvalid }))
+    const isInvalid = !validateAnInput(name, value.toString());
+
+    // Update error state, which will inform the view
+    setErrorObj((prevState) => ({ ...prevState, [name]: isInvalid }));
+  };
+
+  // After visitor leaves a single field
+  const handleBlur = (event: React.FocusEvent<HTMLInputElement>): void => {
+    event.preventDefault();
+    const { name, value } = event.target as HTMLInputElement;
   };
 
   // Submit of the form
@@ -76,41 +186,65 @@ function PaymentForm() {
         label="Full name"
         variant="outlined"
         required
-        error={errorObj.cardName}
-        helperText={errorObj.cardName ? 'Please enter your full name' : null}
+        value={fields["cardName"]}
+        error={!!errorObj.cardName}
+        helperText={errorObj.cardName ? "Please enter your full name" : null}
         onChange={handleChange}
+        onBlur={handleBlur}
       />
       <TextField
-        id="card-number"
-        name="card-number"
+        id="cardNumber"
+        name="cardNumber"
         fullWidth
         label="Card number"
         variant="outlined"
         required
+        value={fields["cardNumber"]}
+        error={!!errorObj.cardNumber}
+        helperText={
+          errorObj.cardNumber ? "Enter a valid 16 digit card number" : null
+        }
+        onChange={handleChange}
+        onBlur={handleBlur}
       />
       <TextField
         id="card-expiration"
-        name="card-expiration"
+        name="cardExpiration"
         fullWidth
         label="Expiration Date"
         variant="outlined"
         required
+        value={fields["cardExpiration"]}
+        error={!!errorObj.cardExpiration}
+        helperText={
+          errorObj.cardExpiration ? "Enter a valid expiration date" : null
+        }
+        onChange={handleChange}
+        onBlur={handleBlur}
       />
       <TextField
         id="card-cvv"
-        name="card-cvv"
+        name="cardCVV"
         fullWidth
         label="CVV2"
-        helperText="Last three digits on signature strip"
         variant="outlined"
+        value={fields["cardCVV"]}
         required
+        error={!!errorObj.cardCVV}
+        helperText={
+          errorObj.cardCVV
+            ? "Last group of digits on the signature strip"
+            : null
+        }
+        onChange={handleChange}
+        onBlur={handleBlur}
       />
       <Button
         type="submit"
         variant="contained"
         color="primary"
         className={classes.submit}
-        disabled
+        disabled={!allowSubmit}
       >
         Pay Now
       </Button>
