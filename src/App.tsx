@@ -10,8 +10,8 @@ const useStyles = makeStyles((theme) => ({
     width: "auto",
     marginLeft: theme.spacing(2),
     marginRight: theme.spacing(2),
-    [theme.breakpoints.up(600 + theme.spacing(2) * 2)]: {
-      width: 600,
+    [theme.breakpoints.up(400 + theme.spacing(2) * 2)]: {
+      width: 400,
       marginLeft: "auto",
       marginRight: "auto",
     },
@@ -32,7 +32,7 @@ function App() {
   return (
     <div className="App">
       <main className={classes.layout}>
-        <Paper className={classes.paper}>
+        <Paper elevation={2} className={classes.paper}>
           <PaymentForm/>
         </Paper>
       </main>

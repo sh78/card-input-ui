@@ -3,17 +3,16 @@ import { makeStyles } from "@material-ui/core/styles";
 import Button from "@material-ui/core/Button";
 import TextField from "@material-ui/core/TextField";
 import Typography from "@material-ui/core/Typography";
+import Grid from "@material-ui/core/Grid";
 
 const useStyles = makeStyles((theme) => ({
   form: {
-    marginTop: theme.spacing(1),
-    "& .MuiFormControl-root": {
-      marginBottom: theme.spacing(2),
-    },
+    "& .MuiFormControl-root": {},
   },
   submit: {
-    margin: theme.spacing(3, 0, 2),
-  },
+    fontSize: "1.21em",
+    margin: "0 auto",
+  }
 }));
 
 function PaymentForm() {
@@ -157,12 +156,6 @@ function PaymentForm() {
     setErrorObj((prevState) => ({ ...prevState, [name]: isInvalid }));
   };
 
-  // After visitor leaves a single field
-  const handleBlur = (event: React.FocusEvent<HTMLInputElement>): void => {
-    event.preventDefault();
-    const { name, value } = event.target as HTMLInputElement;
-  };
-
   // Submit of the form
   const handleSubmit = (event: React.FormEvent<HTMLFormElement>): void => {
     event.preventDefault();
@@ -176,78 +169,93 @@ function PaymentForm() {
 
   return (
     <form className={classes.form} onSubmit={handleSubmit}>
-      <Typography component="h1" variant="h4" align="center">
-        Enter your credit card information
-      </Typography>
-      <TextField
-        id="card-name"
-        name="cardName"
-        fullWidth
-        label="Full name"
-        variant="outlined"
-        required
-        value={fields["cardName"]}
-        error={!!errorObj.cardName}
-        helperText={errorObj.cardName ? "Please enter your full name" : null}
-        onChange={handleChange}
-        onBlur={handleBlur}
-      />
-      <TextField
-        id="cardNumber"
-        name="cardNumber"
-        fullWidth
-        label="Card number"
-        variant="outlined"
-        required
-        value={fields["cardNumber"]}
-        error={!!errorObj.cardNumber}
-        helperText={
-          errorObj.cardNumber ? "Enter a valid 16 digit card number" : null
-        }
-        onChange={handleChange}
-        onBlur={handleBlur}
-      />
-      <TextField
-        id="card-expiration"
-        name="cardExpiration"
-        fullWidth
-        label="Expiration Date"
-        variant="outlined"
-        required
-        value={fields["cardExpiration"]}
-        error={!!errorObj.cardExpiration}
-        helperText={
-          errorObj.cardExpiration ? "Enter a valid expiration date" : null
-        }
-        onChange={handleChange}
-        onBlur={handleBlur}
-      />
-      <TextField
-        id="card-cvv"
-        name="cardCVV"
-        fullWidth
-        label="CVV2"
-        variant="outlined"
-        value={fields["cardCVV"]}
-        required
-        error={!!errorObj.cardCVV}
-        helperText={
-          errorObj.cardCVV
-            ? "Last group of digits on the signature strip"
-            : null
-        }
-        onChange={handleChange}
-        onBlur={handleBlur}
-      />
-      <Button
-        type="submit"
-        variant="contained"
-        color="primary"
-        className={classes.submit}
-        disabled={!allowSubmit}
-      >
-        Pay Now
-      </Button>
+      <Grid justify="center" container spacing={3}>
+        <Grid item xs={12}>
+          <Typography component="h1" variant="h5">
+            Enter your credit card information
+          </Typography>
+        </Grid>
+        <Grid item xs={12}>
+          <TextField
+            id="card-name"
+            name="cardName"
+            fullWidth
+            label="Full name"
+            variant="outlined"
+            required
+            value={fields["cardName"]}
+            error={!!errorObj.cardName}
+            helperText={
+              errorObj.cardName ? "Please enter your full name" : null
+            }
+            onChange={handleChange}
+          />
+        </Grid>
+        <Grid item xs={12}>
+          <TextField
+            id="cardNumber"
+            name="cardNumber"
+            fullWidth
+            label="Card number"
+            variant="outlined"
+            required
+            value={fields["cardNumber"]}
+            error={!!errorObj.cardNumber}
+            helperText={
+              errorObj.cardNumber ? "Enter a valid 16 digit card number" : null
+            }
+            onChange={handleChange}
+          />
+        </Grid>
+        <Grid item xs={6}>
+          <TextField
+            id="card-expiration"
+            name="cardExpiration"
+            fullWidth
+            label="Expires"
+            variant="outlined"
+            required
+            value={fields["cardExpiration"]}
+            error={!!errorObj.cardExpiration}
+            helperText={
+              errorObj.cardExpiration ? "Enter a valid expiration date" : null
+            }
+            onChange={handleChange}
+          />
+        </Grid>
+        <Grid item xs={6}>
+          <TextField
+            id="card-cvv"
+            name="cardCVV"
+            fullWidth
+            label="CVV2"
+            variant="outlined"
+            value={fields["cardCVV"]}
+            required
+            error={!!errorObj.cardCVV}
+            helperText={
+              errorObj.cardCVV
+                ? "Last group of digits on the signature strip"
+                : null
+            }
+            onChange={handleChange}
+          />
+        </Grid>
+        <Grid
+          item
+        >
+          <Button
+            fullWidth={true}
+            type="submit"
+            variant="contained"
+            color="primary"
+            className={classes.submit}
+            disabled={!allowSubmit}
+          >
+            Pay Now
+          </Button>
+        </Grid>
+      </Grid>
     </form>
   );
 }
